@@ -6,7 +6,7 @@
     - path:  "models/MotionLoRA/v2_lora_ZoomIn.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -28,7 +28,7 @@
     - path:  "models/MotionLoRA/v2_lora_ZoomOut.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -50,7 +50,7 @@
     - path:  "models/MotionLoRA/v2_lora_PanLeft.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -72,7 +72,7 @@
     - path:  "models/MotionLoRA/v2_lora_PanRight.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -94,7 +94,7 @@
     - path:  "models/MotionLoRA/v2_lora_TiltUp.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -116,7 +116,7 @@
     - path:  "models/MotionLoRA/v2_lora_TiltDown.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -138,7 +138,7 @@
     - path:  "models/MotionLoRA/v2_lora_RollingAnticlockwise.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
@@ -160,7 +160,7 @@
     - path:  "models/MotionLoRA/v2_lora_RollingClockwise.ckpt"
       alpha: 1.0
 
-  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV51_v51VAE.safetensors"
+  dreambooth_path: "models/DreamBooth_LoRA/realisticVisionV60B1_v51VAE.safetensors"
   lora_model_path: ""
 
   seed:           45987230
