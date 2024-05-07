@@ -25,6 +25,7 @@ from .unet_blocks import (
     get_up_block,
 )
 from .resnet import InflatedConv3d, InflatedGroupNorm
+from ..utils.util import fix_key
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -511,6 +512,9 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         if not os.path.isfile(model_file):
             raise RuntimeError(f"{model_file} does not exist")
         state_dict = torch.load(model_file, map_location="cpu")
+        state_dict = state_dict["state_dict"] if "state_dict" in state_dict else state_dict
+        if pretrained_model_path.endswith(".ckpt"):
+            state_dict = {fix_key(k):v for k,v in state_dict.items()}
 
         m, u = model.load_state_dict(state_dict, strict=False)
         print(f"### missing keys: {len(m)}; \n### unexpected keys: {len(u)};")
@@ -518,5 +522,5 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         params = [p.numel() if "motion_modules." in n else 0 for n, p in model.named_parameters()]
         print(f"### Motion Module Parameters: {sum(params) / 1e6} M")
         if return_config:
-            return model, config
+            return model, config_file
         return model

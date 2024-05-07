@@ -41,7 +41,7 @@ from transformers import CLIPTextModel, CLIPTokenizer
 from animatediff.data.dataset import WebVid10M
 from animatediff.models.unet import UNet3DConditionModel
 from animatediff.pipelines.pipeline_animation import AnimationPipeline
-from animatediff.utils.util import save_videos_grid, zero_rank_print
+from animatediff.utils.util import save_videos_grid, zero_rank_print, fix_key
 
 
 
@@ -77,7 +77,6 @@ def init_dist(launcher="slurm", backend='nccl', port=29500, **kwargs):
     return local_rank
 
 
-
 def main(
     image_finetune: bool,
     
@@ -87,6 +86,7 @@ def main(
     
     output_dir: str,
     pretrained_model_path: str,
+    adapter_path: str,
 
     train_data: Dict,
     validation_data: Dict,
@@ -174,7 +174,7 @@ def main(
     unet_config:str = None
     if not image_finetune:
         unet, unet_config = UNet3DConditionModel.from_pretrained_2d(
-            pretrained_model_path, subfolder="unet", 
+            adapter_path or pretrained_model_path, subfolder="unet", 
             unet_additional_kwargs=OmegaConf.to_container(unet_additional_kwargs),
             return_config=True
         )
@@ -187,11 +187,13 @@ def main(
         unet_checkpoint_path = torch.load(unet_checkpoint_path, map_location="cpu")
         if "global_step" in unet_checkpoint_path: zero_rank_print(f"global_step: {unet_checkpoint_path['global_step']}")
         state_dict = unet_checkpoint_path["state_dict"] if "state_dict" in unet_checkpoint_path else unet_checkpoint_path
+        state_dict = {fix_key(k):v for k,v in state_dict.items()}
         m, u = unet.load_state_dict(state_dict, strict=False)
+        m = [mm for mm in m if "motion_modules" not in mm]
         if is_main_process:
-            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
-        assert len(u) == 0
-        
+            print(f"missing keys: {len(m)}, unexpected keys: {len(u)} missing: {m}")
+        assert len(u) == 0 
+
     # Freeze vae and text_encoder
     vae.requires_grad_(False)
     text_encoder.requires_grad_(False)
@@ -417,11 +419,8 @@ def main(
             # Save checkpoint
             if is_main_process and (global_step % checkpointing_steps == 0 or step == len(train_dataloader) - 1):
                 save_path = os.path.join(output_dir, f"checkpoints")
-                def _fix_key(k:str):
-                    if k.startswith("module."):
-                        k = k[7:]
-                    return k
-                state_dict = {_fix_key(k):v for k,v in unet.state_dict.items()}
+                state_dict = unet.state_dict()
+                state_dict = {fix_key(k):v for k,v in state_dict.items()}
                 state_dict = {
                     "epoch": epoch,
                     "global_step": global_step,

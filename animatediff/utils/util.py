@@ -13,6 +13,11 @@ from einops import rearrange
 from animatediff.utils.convert_from_ckpt import convert_ldm_unet_checkpoint, convert_ldm_clip_checkpoint, convert_ldm_vae_checkpoint
 from animatediff.utils.convert_lora_safetensor_to_diffusers import convert_lora, load_diffusers_lora
 
+def fix_key(k:str):
+    if k.startswith("module."):
+        k = k[7:]
+    return k
+
 
 def zero_rank_print(s):
     if (not dist.is_initialized()) and (dist.is_initialized() and dist.get_rank() == 0): print("### " + s)
