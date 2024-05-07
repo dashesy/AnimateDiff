@@ -475,12 +475,17 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         return UNet3DConditionOutput(sample=sample)
 
     @classmethod
-    def from_pretrained_2d(cls, pretrained_model_path, subfolder=None, unet_additional_kwargs=None):
-        if subfolder is not None:
-            pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
-        print(f"loaded 3D unet's pretrained weights from {pretrained_model_path} ...")
+    def from_pretrained_2d(cls, pretrained_model_path:str, subfolder=None, unet_additional_kwargs=None, return_config=False):
+        model_file:str = None
+        if pretrained_model_path.endswith(".ckpt"):
+            model_file = pretrained_model_path
+            config_file = os.path.join(os.path.dirname(model_file), "config.json")
+        else:
+            if subfolder is not None:
+                pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
 
-        config_file = os.path.join(pretrained_model_path, 'config.json')
+            config_file = os.path.join(pretrained_model_path, 'config.json')
+        print(f"loaded 3D unet's pretrained weights from {pretrained_model_path} ...")
         if not os.path.isfile(config_file):
             raise RuntimeError(f"{config_file} does not exist")
         with open(config_file, "r") as f:
@@ -501,7 +506,8 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
 
         from diffusers.utils import WEIGHTS_NAME
         model = cls.from_config(config, **unet_additional_kwargs)
-        model_file = os.path.join(pretrained_model_path, WEIGHTS_NAME)
+        if not model_file:
+            model_file = os.path.join(pretrained_model_path, WEIGHTS_NAME)
         if not os.path.isfile(model_file):
             raise RuntimeError(f"{model_file} does not exist")
         state_dict = torch.load(model_file, map_location="cpu")
@@ -511,5 +517,6 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
         
         params = [p.numel() if "motion_modules." in n else 0 for n, p in model.named_parameters()]
         print(f"### Motion Module Parameters: {sum(params) / 1e6} M")
-        
+        if return_config:
+            return model, config
         return model

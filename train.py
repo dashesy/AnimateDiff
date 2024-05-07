@@ -10,6 +10,7 @@ import inspect
 import argparse
 import datetime
 import subprocess
+import shutil
 
 from pathlib import Path
 from tqdm.auto import tqdm
@@ -170,10 +171,12 @@ def main(
     vae          = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
     tokenizer    = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
+    unet_config:str = None
     if not image_finetune:
-        unet = UNet3DConditionModel.from_pretrained_2d(
+        unet, unet_config = UNet3DConditionModel.from_pretrained_2d(
             pretrained_model_path, subfolder="unet", 
-            unet_additional_kwargs=OmegaConf.to_container(unet_additional_kwargs)
+            unet_additional_kwargs=OmegaConf.to_container(unet_additional_kwargs),
+            return_config=True
         )
     else:
         unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
@@ -184,11 +187,6 @@ def main(
         unet_checkpoint_path = torch.load(unet_checkpoint_path, map_location="cpu")
         if "global_step" in unet_checkpoint_path: zero_rank_print(f"global_step: {unet_checkpoint_path['global_step']}")
         state_dict = unet_checkpoint_path["state_dict"] if "state_dict" in unet_checkpoint_path else unet_checkpoint_path
-        def _fix_key(k:str):
-            if k.startswith("module."):
-                k = k[7:]
-            return k
-        state_dict = {_fix_key(k):v for k,v in state_dict.items()}
         m, u = unet.load_state_dict(state_dict, strict=False)
         if is_main_process:
             print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
@@ -265,8 +263,7 @@ def main(
         checkpointing_steps = checkpointing_epochs * len(train_dataloader)
 
     if scale_lr:
-        # learning_rate = (learning_rate * gradient_accumulation_steps * train_batch_size * num_processes)
-        learning_rate = (learning_rate * gradient_accumulation_steps * train_batch_size / 4 * num_processes)
+        learning_rate = (learning_rate * gradient_accumulation_steps * train_batch_size * num_processes)
 
     # Scheduler
     lr_scheduler = get_scheduler(
@@ -420,11 +417,18 @@ def main(
             # Save checkpoint
             if is_main_process and (global_step % checkpointing_steps == 0 or step == len(train_dataloader) - 1):
                 save_path = os.path.join(output_dir, f"checkpoints")
+                def _fix_key(k:str):
+                    if k.startswith("module."):
+                        k = k[7:]
+                    return k
+                state_dict = {_fix_key(k):v for k,v in unet.state_dict.items()}
                 state_dict = {
                     "epoch": epoch,
                     "global_step": global_step,
-                    "state_dict": unet.state_dict(),
+                    "state_dict": state_dict,
                 }
+                if image_finetune and unet_config:
+                    shutil.copyfile(unet_config, os.path.join(save_path, "config.json"))
                 if step == len(train_dataloader) - 1:
                     save_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
                 else:
