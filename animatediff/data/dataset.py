@@ -18,9 +18,23 @@ class WebVid10M(Dataset):
             is_image=False,
         ):
         zero_rank_print(f"loading annotations from {csv_path} ...")
-        with open(csv_path, 'r') as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
-        self.length = len(self.dataset)
+        assert type(csv_path) is type(video_folder)
+        if not isinstance(csv_path, (str, list)):
+            from omegaconf import OmegaConf
+            csv_path = OmegaConf.to_container(csv_path)
+            video_folder = OmegaConf.to_container(video_folder)
+            assert type(csv_path) is type(video_folder)
+        if isinstance(csv_path, str):
+            csv_path = [csv_path]
+            video_folder = [video_folder]
+        assert len(csv_path) == len(video_folder)
+        self.datasets = []
+        self.length = 0
+        for csvp in csv_path:
+            with open(csvp, 'r') as csvfile:
+                ds = list(csv.DictReader(csvfile))
+            self.datasets.append(ds)
+            self.length += len(ds)
         zero_rank_print(f"data scale: {self.length}")
 
         self.video_folder    = video_folder
@@ -37,10 +51,19 @@ class WebVid10M(Dataset):
         ])
     
     def get_batch(self, idx):
-        video_dict = self.dataset[idx]
-        videoid, name, page_dir = video_dict['videoid'], video_dict['name'], video_dict['page_dir']
+        ds_idx = 0
+        ds = self.datasets[ds_idx]
+        while idx < 0:
+            print(f"negative {idx}")
+            idx += self.length
+        while idx >= len(ds):
+            ds_idx += 1
+            idx -= len(ds)
+            ds = self.datasets[ds_idx]
+        video_dict = ds[idx]
+        videoid, name = video_dict['videoid'], video_dict['name']
         
-        video_dir    = os.path.join(self.video_folder, f"{videoid}.mp4")
+        video_dir    = os.path.join(self.video_folder[ds_idx], f"{videoid}.mp4")
         video_reader = VideoReader(video_dir)
         video_length = len(video_reader)
         

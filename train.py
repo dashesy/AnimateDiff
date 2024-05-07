@@ -1,6 +1,9 @@
 import os
 import math
-import wandb
+try:
+    import wandb
+except:
+    wandb = None
 import random
 import logging
 import inspect
@@ -149,6 +152,7 @@ def main(
         level=logging.INFO,
     )
 
+    use_wandb = use_wandb and (wandb is not None)
     if is_main_process and (not is_debug) and use_wandb:
         run = wandb.init(project="animatediff", name=folder_name, config=config)
 
@@ -180,9 +184,14 @@ def main(
         unet_checkpoint_path = torch.load(unet_checkpoint_path, map_location="cpu")
         if "global_step" in unet_checkpoint_path: zero_rank_print(f"global_step: {unet_checkpoint_path['global_step']}")
         state_dict = unet_checkpoint_path["state_dict"] if "state_dict" in unet_checkpoint_path else unet_checkpoint_path
-
+        def _fix_key(k:str):
+            if k.startswith("module."):
+                k = k[7:]
+            return k
+        state_dict = {_fix_key(k):v for k,v in state_dict.items()}
         m, u = unet.load_state_dict(state_dict, strict=False)
-        zero_rank_print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
+        if is_main_process:
+            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}")
         assert len(u) == 0
         
     # Freeze vae and text_encoder
@@ -256,7 +265,8 @@ def main(
         checkpointing_steps = checkpointing_epochs * len(train_dataloader)
 
     if scale_lr:
-        learning_rate = (learning_rate * gradient_accumulation_steps * train_batch_size * num_processes)
+        # learning_rate = (learning_rate * gradient_accumulation_steps * train_batch_size * num_processes)
+        learning_rate = (learning_rate * gradient_accumulation_steps * train_batch_size / 4 * num_processes)
 
     # Scheduler
     lr_scheduler = get_scheduler(
@@ -317,7 +327,7 @@ def main(
                 batch['text'] = [name if random.random() > cfg_random_null_text_ratio else "" for name in batch['text']]
                 
             # Data batch sanity check
-            if epoch == first_epoch and step == 0:
+            if is_main_process and epoch == first_epoch and step == 0:
                 pixel_values, texts = batch['pixel_values'].cpu(), batch['text']
                 if not image_finetune:
                     pixel_values = rearrange(pixel_values, "b f c h w -> b c f h w")
@@ -416,9 +426,10 @@ def main(
                     "state_dict": unet.state_dict(),
                 }
                 if step == len(train_dataloader) - 1:
-                    torch.save(state_dict, os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt"))
+                    save_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
                 else:
-                    torch.save(state_dict, os.path.join(save_path, f"checkpoint.ckpt"))
+                    save_path = os.path.join(save_path, f"checkpoint.ckpt")
+                torch.save(state_dict, save_path)
                 logging.info(f"Saved state to {save_path} (global_step: {global_step})")
                 
             # Periodically validation
