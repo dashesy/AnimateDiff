@@ -316,6 +316,7 @@ def main(
     scaler = torch.cuda.amp.GradScaler() if mixed_precision_training else None
 
     for epoch in range(first_epoch, num_train_epochs):
+        progress_bar.set_description(f"epoch: {epoch} steps:")
         train_dataloader.sampler.set_epoch(epoch)
         unet.train()
         
