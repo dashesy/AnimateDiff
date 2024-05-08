@@ -86,7 +86,6 @@ def main(
     
     output_dir: str,
     pretrained_model_path: str,
-    adapter_path: str,
 
     train_data: Dict,
     validation_data: Dict,
@@ -171,12 +170,10 @@ def main(
     vae          = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
     tokenizer    = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
-    unet_config:str = None
     if not image_finetune:
-        unet, unet_config = UNet3DConditionModel.from_pretrained_2d(
-            adapter_path or pretrained_model_path, subfolder="unet", 
-            unet_additional_kwargs=OmegaConf.to_container(unet_additional_kwargs),
-            return_config=True
+        unet = UNet3DConditionModel.from_pretrained_2d(
+            pretrained_model_path, subfolder="unet", 
+            unet_additional_kwargs=OmegaConf.to_container(unet_additional_kwargs)
         )
     else:
         unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
@@ -189,10 +186,11 @@ def main(
         state_dict = unet_checkpoint_path["state_dict"] if "state_dict" in unet_checkpoint_path else unet_checkpoint_path
         state_dict = {fix_key(k):v for k,v in state_dict.items()}
         m, u = unet.load_state_dict(state_dict, strict=False)
-        m = [mm for mm in m if "motion_modules" not in mm]
+        corem = [mm for mm in m if "motion_modules" not in mm]
         if is_main_process:
-            print(f"missing keys: {len(m)}, unexpected keys: {len(u)} missing: {m}")
-        assert len(u) == 0 
+            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}, core missing: {corem}")
+        assert len(u) == 0
+        assert len(corem) == 0
 
     # Freeze vae and text_encoder
     vae.requires_grad_(False)
@@ -417,7 +415,7 @@ def main(
                 wandb.log({"train_loss": loss.item()}, step=global_step)
                 
             # Save checkpoint
-            if is_main_process and (global_step % checkpointing_steps == 0 or step == len(train_dataloader) - 1):
+            if is_main_process and ((global_step % checkpointing_steps == 0) or (step == len(train_dataloader) - 1) or global_step >= max_train_steps):
                 save_path = os.path.join(output_dir, f"checkpoints")
                 state_dict = unet.state_dict()
                 state_dict = {fix_key(k):v for k,v in state_dict.items()}
@@ -426,8 +424,6 @@ def main(
                     "global_step": global_step,
                     "state_dict": state_dict,
                 }
-                if image_finetune and unet_config:
-                    shutil.copyfile(unet_config, os.path.join(save_path, "config.json"))
                 if step == len(train_dataloader) - 1:
                     save_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
                 else:
