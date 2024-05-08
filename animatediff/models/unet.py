@@ -517,7 +517,8 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin):
             state_dict = {fix_key(k):v for k,v in state_dict.items()}
 
         m, u = model.load_state_dict(state_dict, strict=False)
-        print(f"### missing keys: {len(m)}; \n### unexpected keys: {len(u)};")
+        corem = [mm for mm in m if "motion_modules" not in mm]
+        print(f"### missing keys: {len(m)}; \n### unexpected keys: {len(u)}; \n### core missing keys: {len(corem)};")
         
         params = [p.numel() if "motion_modules." in n else 0 for n, p in model.named_parameters()]
         print(f"### Motion Module Parameters: {sum(params) / 1e6} M")
