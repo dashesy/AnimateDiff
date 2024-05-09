@@ -156,6 +156,12 @@ def main(
 
     use_wandb = use_wandb and (wandb is not None)
     if is_main_process and (not is_debug) and use_wandb:
+        if os.path.exists(".env"):
+            with open(".env") as fp:
+                for line in fp:
+                    kv = line.split("=")
+                    os.environ[kv[0].strip()] = kv[1].strip()
+            
         run = wandb.init(project="animatediff", name=folder_name, config=config)
 
     # Handle the output folder creation
