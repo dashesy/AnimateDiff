@@ -427,7 +427,7 @@ def main(
                     "global_step": global_step,
                     "state_dict": state_dict,
                 }
-                if epoch == num_train_epochs:
+                if epoch+1 == num_train_epochs:
                     ckpt_path = os.path.join(save_path, f"checkpoint-last.ckpt")
                     torch.save(state_dict, ckpt_path)
                     logging.info(f"Saved last epoch state to {ckpt_path} (global_step: {global_step})")
