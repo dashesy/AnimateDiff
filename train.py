@@ -49,6 +49,7 @@ def init_dist(launcher="slurm", backend='nccl', port=29500, **kwargs):
     """Initializes distributed environment."""
     if launcher == 'pytorch':
         rank = int(os.environ['RANK'])
+
         num_gpus = torch.cuda.device_count()
         local_rank = rank % num_gpus
         torch.cuda.set_device(local_rank)
@@ -431,8 +432,7 @@ def main(
                     ckpt_path = os.path.join(save_path, f"checkpoint-last.ckpt")
                     torch.save(state_dict, ckpt_path)
                     logging.info(f"Saved last epoch state to {ckpt_path} (global_step: {global_step})")
-
-                if step == len(train_dataloader) - 1:
+                elif step == len(train_dataloader) - 1:
                     ckpt_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
                 else:
                     ckpt_path = os.path.join(save_path, f"checkpoint.ckpt")
