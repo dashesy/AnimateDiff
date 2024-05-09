@@ -34,7 +34,7 @@ def main(args):
     func_args = dict(func_args)
     
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    savedir = f"samples/{Path(args.config).stem}-{time_str}"
+    savedir = os.path.join(args.output_path if args.output_path else "samples", f"{Path(args.config).stem}-{time_str}")
     os.makedirs(savedir)
 
     config  = OmegaConf.load(args.config)
@@ -125,7 +125,7 @@ def main(args):
         pipeline = load_weights(
             pipeline,
             # motion module
-            motion_module_path         = model_config.get("motion_module", ""),
+            motion_module_path         = args.motion_module or model_config.get("motion_module", ""),
             motion_module_lora_configs = model_config.get("motion_module_lora_configs", []),
             # domain adapter
             adapter_lora_path          = model_config.get("adapter_lora_path", ""),
@@ -184,6 +184,8 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained-model-path", type=str, default="models/StableDiffusion/stable-diffusion-v1-5",)
     parser.add_argument("--inference-config",      type=str, default="configs/inference/inference-v1.yaml")    
     parser.add_argument("--config",                type=str, required=True)
+    parser.add_argument("--motion_module", type=str)
+    parser.add_argument("--output_path",  type=str)
     
     parser.add_argument("--L", type=int, default=16 )
     parser.add_argument("--W", type=int, default=512)

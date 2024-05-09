@@ -83,6 +83,7 @@ def main(
     name: str,
     use_wandb: bool,
     launcher: str,
+    output_path:str,
     
     output_dir: str,
     pretrained_model_path: str,
@@ -139,8 +140,8 @@ def main(
     
     # Logging folder
     folder_name = "debug" if is_debug else name + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
-    output_dir = os.path.join(output_dir, folder_name)
-    if is_debug and os.path.exists(output_dir):
+    output_dir = output_path if output_path else os.path.join(output_dir, folder_name)
+    if not output_path and is_debug and os.path.exists(output_dir):
         os.system(f"rm -rf {output_dir}")
 
     *_, config = inspect.getargvalues(inspect.currentframe())
@@ -426,12 +427,17 @@ def main(
                     "global_step": global_step,
                     "state_dict": state_dict,
                 }
+                if epoch == num_train_epochs:
+                    ckpt_path = os.path.join(save_path, f"checkpoint-last.ckpt")
+                    torch.save(state_dict, ckpt_path)
+                    logging.info(f"Saved last epoch state to {ckpt_path} (global_step: {global_step})")
+
                 if step == len(train_dataloader) - 1:
-                    save_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
+                    ckpt_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
                 else:
-                    save_path = os.path.join(save_path, f"checkpoint.ckpt")
-                torch.save(state_dict, save_path)
-                logging.info(f"Saved state to {save_path} (global_step: {global_step})")
+                    ckpt_path = os.path.join(save_path, f"checkpoint.ckpt")
+                torch.save(state_dict, ckpt_path)
+                logging.info(f"Saved state to {ckpt_path} (global_step: {global_step})")
                 
             # Periodically validation
             if is_main_process and (global_step % validation_steps == 0 or global_step in validation_steps_tuple):
@@ -497,9 +503,10 @@ if __name__ == "__main__":
     parser.add_argument("--config",   type=str, required=True)
     parser.add_argument("--launcher", type=str, choices=["pytorch", "slurm"], default="pytorch")
     parser.add_argument("--wandb",    action="store_true")
+    parser.add_argument("--output_path",  type=str)
     args = parser.parse_args()
 
     name   = Path(args.config).stem
     config = OmegaConf.load(args.config)
 
-    main(name=name, launcher=args.launcher, use_wandb=args.wandb, **config)
+    main(name=name, launcher=args.launcher, use_wandb=args.wandb, output_path=args.output_path, **config)
