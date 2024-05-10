@@ -30,6 +30,9 @@ import numpy as np
 
 @torch.no_grad()
 def main(args):
+    is_main_process = int(os.environ.get("RANK", 0)) == 0
+    if not is_main_process:
+        return
     *_, func_args = inspect.getargvalues(inspect.currentframe())
     func_args = dict(func_args)
     

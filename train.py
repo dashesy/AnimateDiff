@@ -43,8 +43,6 @@ from animatediff.models.unet import UNet3DConditionModel
 from animatediff.pipelines.pipeline_animation import AnimationPipeline
 from animatediff.utils.util import save_videos_grid, zero_rank_print, fix_key
 
-
-
 def init_dist(launcher="slurm", backend='nccl', port=29500, **kwargs):
     """Initializes distributed environment."""
     if launcher == 'pytorch':
@@ -134,6 +132,7 @@ def main(
     local_rank      = init_dist(launcher=launcher)
     global_rank     = dist.get_rank()
     num_processes   = dist.get_world_size()
+    print(f"local_rank: {local_rank} global_rank: {global_rank} num_processes: {num_processes}")
     is_main_process = global_rank == 0
 
     seed = global_seed + global_rank
@@ -325,7 +324,7 @@ def main(
 
     for epoch in range(first_epoch, num_train_epochs):
         if epoch:
-            progress_bar.set_description(f"Epoch: {epoch} Steps:")
+            progress_bar.set_description(f"Epoch: {epoch} Steps")
         train_dataloader.sampler.set_epoch(epoch)
         unet.train()
         
