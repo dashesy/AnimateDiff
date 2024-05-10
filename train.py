@@ -80,6 +80,7 @@ def main(
     image_finetune: bool,
     
     name: str,
+    group_name: str,
     use_wandb: bool,
     launcher: str,
     output_path:str,
@@ -161,7 +162,7 @@ def main(
                     kv = line.split("=")
                     os.environ[kv[0].strip()] = kv[1].strip()
             
-        run = wandb.init(project="animatediff", name=folder_name, config=config)
+        run = wandb.init(project="animatediff", name=folder_name, group=group_name, config=config)
 
     # Handle the output folder creation
     if is_main_process:
@@ -510,6 +511,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     name   = Path(args.config).stem
+    group_name = "/".join(args.config.split("/")[-3:])
     config = OmegaConf.load(args.config)
 
-    main(name=name, launcher=args.launcher, use_wandb=args.wandb, output_path=args.output_path, **config)
+    main(name=name, group_name=group_name, launcher=args.launcher, use_wandb=args.wandb, output_path=args.output_path, **config)
