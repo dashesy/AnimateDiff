@@ -325,7 +325,7 @@ def main(
 
     for epoch in range(first_epoch, num_train_epochs):
         if epoch:
-            progress_bar.set_description(f"Epoch: {epoch} Steps")
+            progress_bar.set_description(f"Epoch: {epoch+1} Steps")
         train_dataloader.sampler.set_epoch(epoch)
         unet.train()
         
