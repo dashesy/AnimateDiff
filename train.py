@@ -94,6 +94,7 @@ def main(
     cfg_random_null_text_ratio: float = 0.1,
     
     unet_checkpoint_path: str = "",
+    motion_module_checkpoint_path: str = "",
     unet_additional_kwargs: Dict = {},
     ema_decay: float = 0.9999,
     noise_scheduler_kwargs = None,
@@ -188,6 +189,20 @@ def main(
     else:
         unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
         
+    # Load pretrained motion module checkpoint weights
+    if motion_module_checkpoint_path != "":
+        zero_rank_print(f"from mm checkpoint: {motion_module_checkpoint_path}")
+        motion_module_checkpoint_path = torch.load(motion_module_checkpoint_path, map_location="cpu")
+        if "global_step" in motion_module_checkpoint_path: zero_rank_print(f"mm global_step: {motion_module_checkpoint_path['global_step']}")
+        state_dict = motion_module_checkpoint_path["state_dict"] if "state_dict" in motion_module_checkpoint_path else motion_module_checkpoint_path
+        state_dict = {fix_key(k):v for k,v in state_dict.items()}
+        state_dict = {k:v for k,v in state_dict.items() if "motion_modules" in k}
+        m, u = unet.load_state_dict(state_dict, strict=False)
+        if is_main_process:
+            print(f"mm missing keys: {len(m)}, unexpected keys: {len(u)}")
+        assert len(u) == 0
+        assert len(state_dict)
+
     # Load pretrained unet weights
     if unet_checkpoint_path != "":
         zero_rank_print(f"from checkpoint: {unet_checkpoint_path}")
