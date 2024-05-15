@@ -164,8 +164,8 @@ def main(
                 for line in fp:
                     kv = line.split("=")
                     os.environ[kv[0].strip()] = kv[1].strip()
-            
-        run = wandb.init(project="animatediff", name=name, group=group_name, config=config)
+        id_ = wandb.util.generate_id()
+        run = wandb.init(project="animatediff", name=name, id=id_, group=group_name, config=config)
 
     # Handle the output folder creation
     if is_main_process:
