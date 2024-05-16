@@ -78,7 +78,6 @@ def init_dist(launcher="slurm", backend='nccl', port=29500, **kwargs):
 
 def main(
     image_finetune: bool,
-    image_lora: bool,
     
     name: str,
     group_name: str,
@@ -94,6 +93,7 @@ def main(
     cfg_random_null_text: bool = True,
     cfg_random_null_text_ratio: float = 0.1,
     
+    image_lora: bool = False,
     adapter_lora_path: str = "",
     unet_checkpoint_path: str = "",
     motion_module_checkpoint_path: str = "",
