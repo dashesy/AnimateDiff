@@ -16,6 +16,10 @@ from animatediff.utils.convert_lora_safetensor_to_diffusers import convert_lora,
 def fix_key(k:str):
     if k.startswith("module."):
         k = k[7:]
+    k = k.replace(".to_out_", ".to_out.0")
+    k = k.replace("processor.", "")
+    k = k.replace("_lora.down", ".lora_A.default")
+    k = k.replace("_lora.up", ".lora_B.default")
     return k
 
 

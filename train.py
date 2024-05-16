@@ -78,6 +78,7 @@ def init_dist(launcher="slurm", backend='nccl', port=29500, **kwargs):
 
 def main(
     image_finetune: bool,
+    image_lora: bool,
     
     name: str,
     group_name: str,
@@ -93,6 +94,7 @@ def main(
     cfg_random_null_text: bool = True,
     cfg_random_null_text_ratio: float = 0.1,
     
+    adapter_lora_path: str = "",
     unet_checkpoint_path: str = "",
     motion_module_checkpoint_path: str = "",
     unet_additional_kwargs: Dict = {},
@@ -141,7 +143,8 @@ def main(
     torch.manual_seed(seed)
     
     # Logging folder
-    name = "debug" if is_debug else name + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
+    name = "debug" if is_debug else name
+    name += "/".join(output_path.split("/")[-2:]) + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
     output_dir = output_path if output_path else os.path.join(output_dir, name)
     if not output_path and is_debug and os.path.exists(output_dir):
         os.system(f"rm -rf {output_dir}")
@@ -181,14 +184,39 @@ def main(
     vae          = AutoencoderKL.from_pretrained(pretrained_model_path, subfolder="vae")
     tokenizer    = CLIPTokenizer.from_pretrained(pretrained_model_path, subfolder="tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(pretrained_model_path, subfolder="text_encoder")
-    if not image_finetune:
+    if not image_finetune and not image_lora:
         unet = UNet3DConditionModel.from_pretrained_2d(
             pretrained_model_path, subfolder="unet", 
             unet_additional_kwargs=OmegaConf.to_container(unet_additional_kwargs)
         )
     else:
         unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
-        
+
+    if image_lora or adapter_lora_path:
+        from peft import LoraConfig, get_peft_model
+        unet_lora_config = LoraConfig(
+            r=128,
+            lora_alpha=1.0,
+            init_lora_weights="gaussian",
+            target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+            lora_dropout=0.01,
+        )
+        peft_unet = get_peft_model(unet, unet_lora_config)
+
+    # domain adapter lora
+    if adapter_lora_path != "":
+        zero_rank_print(f"load domain lora from {adapter_lora_path}")
+        adapter_lora_path = torch.load(adapter_lora_path, map_location="cpu")
+        state_dict = adapter_lora_path["state_dict"] if "state_dict" in adapter_lora_path else adapter_lora_path
+        state_dict = {fix_key(k):v for k,v in state_dict.items()}
+        state_dict = {k:v for k,v in state_dict.items() if ".lora" in k}
+        m, u = unet.load_state_dict(state_dict, strict=False)
+        m = [mm for mm in m if "lora." in mm]
+        if is_main_process:
+            print(f"lora missing keys: {len(m)}, unexpected keys: {len(u)}")
+        assert len(u) == 0
+        assert len(m) == 0
+
     # Load pretrained motion module checkpoint weights
     if motion_module_checkpoint_path != "":
         zero_rank_print(f"from mm checkpoint: {motion_module_checkpoint_path}")
@@ -198,10 +226,11 @@ def main(
         state_dict = {fix_key(k):v for k,v in state_dict.items()}
         state_dict = {k:v for k,v in state_dict.items() if "motion_modules" in k}
         m, u = unet.load_state_dict(state_dict, strict=False)
+        m = [mm for mm in m if "motion_modules." in mm]
         if is_main_process:
             print(f"mm missing keys: {len(m)}, unexpected keys: {len(u)}")
         assert len(u) == 0
-        assert len(state_dict)
+        assert len(m) == 0
 
     # Load pretrained unet weights
     if unet_checkpoint_path != "":
@@ -258,7 +287,7 @@ def main(
     text_encoder.to(local_rank)
 
     # Get the training dataset
-    train_dataset = WebVid10M(**train_data, is_image=image_finetune)
+    train_dataset = WebVid10M(**train_data, is_image=image_finetune or image_lora)
     distributed_sampler = DistributedSampler(
         train_dataset,
         num_replicas=num_processes,
@@ -299,7 +328,7 @@ def main(
     )
 
     # Validation pipeline
-    if not image_finetune:
+    if not image_finetune and not image_lora:
         validation_pipeline = AnimationPipeline(
             unet=unet, vae=vae, tokenizer=tokenizer, text_encoder=text_encoder, scheduler=noise_scheduler,
         ).to("cuda")
@@ -353,7 +382,7 @@ def main(
             # Data batch sanity check
             if is_main_process and epoch == first_epoch and step == 0:
                 pixel_values, texts = batch['pixel_values'].cpu(), batch['text']
-                if not image_finetune:
+                if not image_finetune and not image_lora:
                     pixel_values = rearrange(pixel_values, "b f c h w -> b c f h w")
                     for idx, (pixel_value, text) in enumerate(zip(pixel_values, texts)):
                         pixel_value = pixel_value[None, ...]
@@ -369,7 +398,7 @@ def main(
             pixel_values = batch["pixel_values"].to(local_rank)
             video_length = pixel_values.shape[1]
             with torch.no_grad():
-                if not image_finetune:
+                if not image_finetune and not image_lora:
                     pixel_values = rearrange(pixel_values, "b f c h w -> (b f) c h w")
                     latents = vae.encode(pixel_values).latent_dist
                     latents = latents.sample()
@@ -470,10 +499,10 @@ def main(
                 height = train_data.sample_size[0] if not isinstance(train_data.sample_size, int) else train_data.sample_size
                 width  = train_data.sample_size[1] if not isinstance(train_data.sample_size, int) else train_data.sample_size
 
-                prompts = validation_data.prompts[:2] if global_step < 1000 and (not image_finetune) else validation_data.prompts
+                prompts = validation_data.prompts[:2] if global_step < 1000 and (not image_finetune and not image_lora) else validation_data.prompts
 
                 for idx, prompt in enumerate(prompts):
-                    if not image_finetune:
+                    if not image_finetune and not image_lora:
                         sample = validation_pipeline(
                             prompt,
                             generator    = generator,
