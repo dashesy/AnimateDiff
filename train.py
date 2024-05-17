@@ -212,7 +212,7 @@ def main(
         state_dict = {fix_key(k):v for k,v in state_dict.items()}
         state_dict = {k:v for k,v in state_dict.items() if ".lora" in k}
         m, u = unet.load_state_dict(state_dict, strict=False)
-        m = [mm for mm in m if "lora." in mm]
+        m = [mm for mm in m if ".lora" in mm]
         if is_main_process:
             print(f"lora missing keys: {len(m)}, unexpected keys: {len(u)}")
         assert len(u) == 0
