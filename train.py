@@ -200,6 +200,7 @@ def main(
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
             lora_dropout=0.01,
+            use_rslora=True,
         )
         peft_unet = get_peft_model(unet, unet_lora_config)
 
