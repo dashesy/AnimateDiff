@@ -96,7 +96,7 @@ def main(
     image_lora: bool = False,
     adapter_lora_path: str = "",
     unet_checkpoint_path: str = "",
-    motion_module_checkpoint_path: str = "",
+    motion_module: str = "",
     unet_additional_kwargs: Dict = {},
     ema_decay: float = 0.9999,
     noise_scheduler_kwargs = None,
@@ -219,11 +219,11 @@ def main(
         assert len(m) == 0
 
     # Load pretrained motion module checkpoint weights
-    if motion_module_checkpoint_path != "":
-        zero_rank_print(f"from mm checkpoint: {motion_module_checkpoint_path}")
-        motion_module_checkpoint_path = torch.load(motion_module_checkpoint_path, map_location="cpu")
-        if "global_step" in motion_module_checkpoint_path: zero_rank_print(f"mm global_step: {motion_module_checkpoint_path['global_step']}")
-        state_dict = motion_module_checkpoint_path["state_dict"] if "state_dict" in motion_module_checkpoint_path else motion_module_checkpoint_path
+    if motion_module != "":
+        zero_rank_print(f"from mm checkpoint: {motion_module}")
+        motion_module = torch.load(motion_module, map_location="cpu")
+        if "global_step" in motion_module: zero_rank_print(f"mm global_step: {motion_module['global_step']}")
+        state_dict = motion_module["state_dict"] if "state_dict" in motion_module else motion_module
         state_dict = {fix_key(k):v for k,v in state_dict.items()}
         state_dict = {k:v for k,v in state_dict.items() if "motion_modules" in k}
         m, u = unet.load_state_dict(state_dict, strict=False)
