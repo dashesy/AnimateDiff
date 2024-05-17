@@ -198,7 +198,7 @@ def main(
             r=128,
             lora_alpha=1.0,
             init_lora_weights="gaussian",
-            target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+            target_modules=r"((?!motion_modules).)*\.(to_k|to_q|to_v|to_out\.0)",
             lora_dropout=0,
             use_rslora=True,
         )
