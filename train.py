@@ -199,7 +199,7 @@ def main(
             lora_alpha=1.0,
             init_lora_weights="gaussian",
             target_modules=["to_k", "to_q", "to_v", "to_out.0"],
-            lora_dropout=0.01,
+            lora_dropout=0,
             use_rslora=True,
         )
         peft_unet = get_peft_model(unet, unet_lora_config)
@@ -288,7 +288,7 @@ def main(
     text_encoder.to(local_rank)
 
     # Get the training dataset
-    train_dataset = WebVid10M(**train_data, is_image=image_finetune or image_lora)
+    train_dataset = WebVid10M(**train_data, is_image=(image_finetune or image_lora))
     distributed_sampler = DistributedSampler(
         train_dataset,
         num_replicas=num_processes,
@@ -527,7 +527,7 @@ def main(
                         sample = torchvision.transforms.functional.to_tensor(sample)
                         samples.append(sample)
                 
-                if not image_finetune:
+                if not image_finetune and not image_lora:
                     samples = torch.concat(samples)
                     save_path = f"{output_dir}/samples/sample-{global_step}.gif"
                     save_videos_grid(samples, save_path)
