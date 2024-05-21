@@ -215,7 +215,7 @@ def main(
         m, u = unet.load_state_dict(state_dict, strict=False)
         m = [mm for mm in m if ".lora" in mm]
         if is_main_process:
-            print(f"lora missing keys: {len(m)}, unexpected keys: {len(u)}")
+            print(f"lora missing keys: {len(m)}, unexpected keys: {len(u)}, name: {name}")
         assert len(u) == 0
         assert len(m) == 0
 
@@ -231,7 +231,7 @@ def main(
         m, u = unet.load_state_dict(state_dict, strict=False)
         m = [mm for mm in m if "motion_modules." in mm]
         if is_main_process:
-            print(f"mm missing keys: {len(m)}, unexpected keys: {len(u)}")
+            print(f"mm missing keys: {len(m)}, unexpected keys: {len(u)}, name: {name}")
         assert len(u) == 0
         assert len(m) == 0
 
@@ -245,7 +245,7 @@ def main(
         m, u = unet.load_state_dict(state_dict, strict=False)
         corem = [mm for mm in m if "motion_modules" not in mm]
         if is_main_process:
-            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}, core missing: {corem}")
+            print(f"missing keys: {len(m)}, unexpected keys: {len(u)}, core missing: {corem}, name: {name}")
         assert len(u) == 0
         assert len(corem) == 0
 
@@ -490,7 +490,7 @@ def main(
                 else:
                     ckpt_path = os.path.join(save_path, f"checkpoint.ckpt")
                 torch.save(state_dict, ckpt_path)
-                logging.info(f"Saved state to {ckpt_path} (global_step: {global_step})")
+                logging.info(f"Saved state to {ckpt_path} (global_step: {global_step}) name: {name}")
                 
             # Periodically validation
             if is_main_process and (global_step % validation_steps == 0 or global_step in validation_steps_tuple):
@@ -539,7 +539,7 @@ def main(
                     save_path = f"{output_dir}/samples/sample-{global_step}.png"
                     torchvision.utils.save_image(samples, save_path, nrow=4)
 
-                logging.info(f"Saved samples to {save_path}")
+                logging.info(f"Saved samples to {save_path} name: {name}")
                 
             logs = {"step_loss": loss.detach().item(), "lr": lr_scheduler.get_last_lr()[0]}
             progress_bar.set_postfix(**logs)
