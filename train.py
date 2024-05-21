@@ -255,9 +255,9 @@ def main(
     
     # Set unet trainable parameters
     unet.requires_grad_(False)
-    for name, param in unet.named_parameters():
+    for pname, param in unet.named_parameters():
         for trainable_module_name in trainable_modules:
-            if trainable_module_name in name:
+            if trainable_module_name in pname:
                 param.requires_grad = True
                 break
             
@@ -380,7 +380,7 @@ def main(
         
         for step, batch in enumerate(train_dataloader):
             if cfg_random_null_text:
-                batch['text'] = [name if random.random() > cfg_random_null_text_ratio else "" for name in batch['text']]
+                batch['text'] = [pname if random.random() > cfg_random_null_text_ratio else "" for pname in batch['text']]
                 
             # Data batch sanity check
             if is_main_process and epoch == first_epoch and step == 0:
