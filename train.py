@@ -144,7 +144,7 @@ def main(
     
     # Logging folder
     name = "debug" if is_debug else name
-    name += "/".join(output_path.split("/")[-2:]) + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
+    name += "/".join([p for p in output_path.split("/")[-3:] if p][-2:]) + datetime.datetime.now().strftime("-%Y-%m-%dT%H-%M-%S")
     output_dir = output_path if output_path else os.path.join(output_dir, name)
     if not output_path and is_debug and os.path.exists(output_dir):
         os.system(f"rm -rf {output_dir}")
@@ -560,7 +560,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     name   = Path(args.config).stem
-    group_name = "/".join(args.config.split("/")[-3:])
+    group_name = "/".join([p for p in args.config.split("/")[-4:] if p][-3:])
     config = OmegaConf.load(args.config)
 
     main(name=name, group_name=group_name, launcher=args.launcher, use_wandb=args.wandb, output_path=args.output_path, **config)
