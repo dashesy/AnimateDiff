@@ -211,6 +211,7 @@ def main(
         state_dict = adapter_lora_path["state_dict"] if "state_dict" in adapter_lora_path else adapter_lora_path
         state_dict = {fix_key(k):v for k,v in state_dict.items()}
         state_dict = {k:v for k,v in state_dict.items() if ".lora" in k}
+        assert state_dict, "No lora modules"
         m, u = unet.load_state_dict(state_dict, strict=False)
         m = [mm for mm in m if ".lora" in mm]
         if is_main_process:
@@ -226,6 +227,7 @@ def main(
         state_dict = motion_module["state_dict"] if "state_dict" in motion_module else motion_module
         state_dict = {fix_key(k):v for k,v in state_dict.items()}
         state_dict = {k:v for k,v in state_dict.items() if "motion_modules" in k}
+        assert state_dict, "No motion modules"
         m, u = unet.load_state_dict(state_dict, strict=False)
         m = [mm for mm in m if "motion_modules." in mm]
         if is_main_process:
