@@ -483,10 +483,11 @@ def main(
                     "global_step": global_step,
                     "state_dict": state_dict,
                 }
-                if epoch+1 == num_train_epochs:
-                    ckpt_path = os.path.join(save_path, f"checkpoint-last.ckpt")
-                elif step == len(train_dataloader) - 1:
-                    ckpt_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
+                if step == len(train_dataloader) - 1:
+                    if epoch+1 == num_train_epochs:
+                        ckpt_path = os.path.join(save_path, f"checkpoint-last.ckpt")
+                    else:
+                        ckpt_path = os.path.join(save_path, f"checkpoint-epoch-{epoch+1}.ckpt")
                 else:
                     ckpt_path = os.path.join(save_path, f"checkpoint.ckpt")
                 torch.save(state_dict, ckpt_path)
